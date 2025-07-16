@@ -1,6 +1,6 @@
-# Laptis Dev Forum ![License](https://img.shields.io/badge/license-MIT-blue.svg?style=plastic)
+# LPBackend ![License](https://img.shields.io/badge/license-MIT-blue.svg?style=plastic)
 
-The lightweight forum website framework, for Laptis internal use.
+The lightweight forum website backend.
 
 **This project is under active development.**
 
