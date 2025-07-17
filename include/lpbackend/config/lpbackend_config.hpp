@@ -50,11 +50,8 @@ class lpbackend_config : public config
     {
       public:
         std::string listen_address;
-        bool http_enable;
-        bool https_enable;
-        boost::asio::ip::port_type listen_port_http;
-        boost::asio::ip::port_type listen_port_https;
-        std::int32_t timeout_milliseconds;
+        boost::asio::ip::port_type listen_port;
+        std::uint64_t timeout_milliseconds;
     } networking;
 
     class
@@ -63,7 +60,20 @@ class lpbackend_config : public config
         std::filesystem::path certificate;
         std::filesystem::path private_key;
         std::filesystem::path tmp_dh;
+        bool force_ssl;
     } ssl;
+
+    class
+    {
+      public:
+        std::size_t worker_threads;
+    } asio;
+
+    class
+    {
+      public:
+        std::filesystem::path doc_root;
+    } http;
 
     lpbackend_config() noexcept;
 

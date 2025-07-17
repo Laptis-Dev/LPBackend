@@ -21,6 +21,8 @@
  */
 
 #include <filesystem>
+#include <thread>
+
 #include <fmt/format.h>
 
 #include <boost/property_tree/json_parser.hpp>
@@ -31,13 +33,13 @@
 namespace lpbackend::config
 {
 lpbackend_config::lpbackend_config() noexcept
-    : logging{.color_logging = true}, networking{.listen_address = "0.0.0.0",
-                                                 .http_enable = true,
-                                                 .https_enable = false,
-                                                 .listen_port_http = 80,
-                                                 .listen_port_https = 443,
-                                                 .timeout_milliseconds = 60000},
-      ssl{.certificate = "./ssl/cert.pem", .private_key = "./ssl/key.pem", .tmp_dh = "./ssl/dh.pem"}
+    : logging{.color_logging = true},
+      networking{.listen_address = "0.0.0.0", .listen_port = 443, .timeout_milliseconds = 60000},
+      ssl{.certificate = "./ssl/cert.pem",
+          .private_key = "./ssl/key.pem",
+          .tmp_dh = "./ssl/dh.pem",
+          .force_ssl = false},
+      asio{.worker_threads = std::thread::hardware_concurrency()}
 {
 }
 
@@ -51,21 +53,23 @@ void lpbackend_config::load()
         return;
     }
     boost::property_tree::ptree tree{};
-    boost::property_tree::read_json(file_path, tree);
+    read_json(file_path, tree);
 
     logging.color_logging = tree.get("logging.color_logging", logging.color_logging);
 
     networking.listen_address = tree.get("networking.listen_address", networking.listen_address);
-    networking.http_enable = tree.get("networking.http_enable", networking.http_enable);
-    networking.https_enable = tree.get("networking.https_enable", networking.https_enable);
-    networking.listen_port_http = tree.get("networking.listen_port_http", networking.listen_port_http);
-    networking.listen_port_https = tree.get("networking.listen_port_https", networking.listen_port_https);
+    networking.listen_port = tree.get("networking.listen_port", networking.listen_port);
     networking.timeout_milliseconds = tree.get("networking.timeout_milliseconds", networking.timeout_milliseconds);
 
     ssl.certificate = tree.get("ssl.certificate", ssl.certificate);
     ssl.private_key = tree.get("ssl.private_key", ssl.private_key);
     ssl.tmp_dh = tree.get("ssl.tmp_dh", ssl.tmp_dh);
-    ssl.tmp_dh = tree.get("ssl.tmp_dh", ssl.tmp_dh);
+    ssl.force_ssl = tree.get("ssl.force_ssl", ssl.force_ssl);
+
+    asio.worker_threads = tree.get("asio.worker_threads", asio.worker_threads);
+
+    http.doc_root = tree.get("http.doc_root", http.doc_root);
+
     save();
 }
 
@@ -77,17 +81,19 @@ void lpbackend_config::save()
     tree.put("logging.color_logging", logging.color_logging);
 
     tree.put("networking.listen_address", networking.listen_address);
-    tree.put("networking.http_enable", networking.http_enable);
-    tree.put("networking.https_enable", networking.https_enable);
-    tree.put("networking.listen_port_http", networking.listen_port_http);
-    tree.put("networking.listen_port_https", networking.listen_port_https);
+    tree.put("networking.listen_port", networking.listen_port);
     tree.put("networking.timeout_milliseconds", networking.timeout_milliseconds);
 
     tree.put("ssl.certificate", ssl.certificate);
     tree.put("ssl.private_key", ssl.private_key);
     tree.put("ssl.tmp_dh", ssl.tmp_dh);
+    tree.put("ssl.force_ssl", ssl.force_ssl);
+
+    tree.put("asio.worker_threads", asio.worker_threads);
+
+    tree.put("http.doc_root", http.doc_root);
 
     create_directories(std::filesystem::path{file_path}.parent_path());
-    boost::property_tree::write_json(file_path, tree);
+    write_json(file_path, tree);
 }
 } // namespace lpbackend::config

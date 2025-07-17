@@ -20,12 +20,9 @@
  * SOFTWARE.
  */
 
-#include <csignal>
-#include <cstdlib>
 #include <exception>
 #include <iostream>
 #include <memory>
-#include <thread>
 
 #include <boost/nowide/args.hpp>
 #include <boost/nowide/iostream.hpp>
@@ -76,8 +73,6 @@ bool enable_ansi_support() noexcept
 #endif
 
 std::unique_ptr<lpbackend::plugin::plugin_manager> manager;
-std::thread server_thread; // using a separate thread so that plasma_server is destructed normally (std::shared_ptr is
-                           // destructed normally)
 } // namespace
 
 int main(int argc, char *argv[])
@@ -154,37 +149,6 @@ int main(int argc, char *argv[])
         LPBACKEND_LOG(lg, info) << "Initialized configurations";
         return 0;
     }
-    std::atexit([] {
-        dynamic_cast<lpbackend::lpbackend_server *>(manager->get_plugin(lpbackend::lpbackend_server::name).get())
-            ->stop();
-        if (server_thread.joinable())
-        {
-            server_thread.join();
-        }
-    });
-    auto handler{[](const int signal) {
-        if (signal == SIGINT)
-        {
-            logger lg{};
-            LPBACKEND_LOG(lg, fatal) << "Caught SIGINT, terminating...";
-            std::exit(0);
-        }
-    }};
-    if (std::signal(SIGINT, handler) == SIG_ERR)
-    {
-        LPBACKEND_LOG(lg, warning) << "Failed to set signal handler";
-    }
-    else
-    {
-        LPBACKEND_LOG(lg, trace) << "Set signal handler";
-    }
-    server_thread = std::thread{[] {
-        dynamic_cast<lpbackend::lpbackend_server *>(manager->get_plugin(lpbackend::lpbackend_server::name).get())
-            ->start();
-    }};
-    if (server_thread.joinable())
-    {
-        server_thread.join();
-    }
+    dynamic_cast<lpbackend::lpbackend_server *>(manager->get_plugin(lpbackend::lpbackend_server::name).get())->start();
     return 0;
 }
