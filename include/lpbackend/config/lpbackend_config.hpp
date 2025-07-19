@@ -26,6 +26,7 @@
 #include <boost/asio/ssl.hpp>
 
 #include <filesystem>
+#include <thread>
 
 #include <lpbackend/config/config.hpp>
 #include <lpbackend/log.hpp>
@@ -40,54 +41,50 @@ class lpbackend_config : public config
   public:
     static constexpr auto file_path{"./config/lpbackend.json"};
 
-    class
+    struct
     {
-      public:
-        bool color_logging;
-    } logging;
+        struct
+        {
+            bool color_logging{true};
+        } logging;
 
-    class
-    {
-      public:
-        std::string listen_address;
-        boost::asio::ip::port_type listen_port;
-        std::uint64_t timeout_milliseconds;
-    } networking;
+        struct
+        {
+            std::string listen_address{"0.0.0.0"};
+            boost::asio::ip::port_type listen_port{443};
+            std::uint64_t timeout_milliseconds{5000};
+        } networking;
 
-    class
-    {
-      public:
-        std::filesystem::path certificate;
-        std::filesystem::path private_key;
-        std::filesystem::path tmp_dh;
-        bool force_ssl;
-    } ssl;
+        struct
+        {
+            std::filesystem::path certificate{"./ssl/cert.pem"};
+            std::filesystem::path private_key{"./ssl/key.pem"};
+            std::filesystem::path tmp_dh{"./ssl/dh.pem"};
+            bool force_ssl{false};
+        } ssl;
 
-    class
-    {
-      public:
-        std::size_t worker_threads;
-    } asio;
+        struct
+        {
+            std::uint64_t worker_threads{std::thread::hardware_concurrency()};
+        } asio;
 
-    class
-    {
-      public:
-        std::filesystem::path doc_root;
-    } http;
-
-    lpbackend_config() noexcept;
+        struct
+        {
+            std::filesystem::path doc_root{"./docroot"};
+        } http;
+    } fields;
 
     /**
      * @brief Loads the configuration
      *
-     * @throws boost::property_tree::json_parser_error on JSON parsing failure
+     * @throws boost::system::system_error on JSON parsing failure
      */
     void load() override;
 
     /**
      * @brief Saves the configuration
      *
-     * @throws boost::property_tree::json_parser_error on JSON parsing failure
+     * @throws boost::system::system_error on JSON parsing failure
      */
     void save() override;
 };

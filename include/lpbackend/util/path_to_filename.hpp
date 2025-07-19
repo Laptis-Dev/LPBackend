@@ -51,12 +51,12 @@ template <literal_string Path> struct path_parser final
         return static_cast<std::size_t>(-1);
     }
 
-  public:
     static constexpr const std::size_t last_slash_pos{find_last_slash()};
     static constexpr const std::size_t filename_start{
         (last_slash_pos == static_cast<std::size_t>(-1)) ? 0 : (last_slash_pos + 1)};
     static constexpr const std::size_t filename_len{path_len - filename_start};
 
+  public:
     static constexpr inline std::array<char, filename_len + 1> value{[] {
         std::array<char, filename_len + 1> arr{};
         for (std::size_t i{}; i < filename_len; ++i)

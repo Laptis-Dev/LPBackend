@@ -119,9 +119,9 @@ boost::asio::awaitable<void, lpbackend_server::executor_type> lpbackend_server::
 {
     auto state{co_await boost::asio::this_coro::cancellation_state};
     auto executor{co_await boost::asio::this_coro::executor};
-    acceptor_type acceptor{
-        executor, boost::asio::ip::tcp::endpoint{boost::asio::ip::make_address(config_.networking.listen_address),
-                                                 config_.networking.listen_port}};
+    acceptor_type acceptor{executor, boost::asio::ip::tcp::endpoint{
+                                         boost::asio::ip::make_address(config_.fields.networking.listen_address),
+                                         config_.fields.networking.listen_port}};
 
     // Allow total cancellation to propagate to async operations
     co_await boost::asio::this_coro::reset_cancellation_state(boost::asio::enable_total_cancellation());
@@ -202,12 +202,12 @@ boost::asio::awaitable<void, lpbackend_server::executor_type> lpbackend_server::
             throw boost::system::system_error{ec};
         }
     }
-    else if (!ssl_detected && !config_.ssl.force_ssl)
+    else if (!ssl_detected && !config_.fields.ssl.force_ssl)
     {
         LPBACKEND_LOG(lg_, info) << "Accepting incoming HTTP connection";
         co_await run_session(stream, buffer);
     }
-    else if (!ssl_detected && config_.ssl.force_ssl)
+    else if (!ssl_detected && config_.fields.ssl.force_ssl)
     {
         LPBACKEND_LOG(lg_, error) << "Rejecting incoming HTTP connection (forcing SSL)";
         stream.socket().shutdown(boost::asio::ip::tcp::socket::shutdown_both);
@@ -221,12 +221,13 @@ void lpbackend_server::initialize(lpbackend::plugin::plugin_manager &)
     {
         config_.load();
     }
-    catch (const boost::property_tree::json_parser_error &e)
+    catch (const boost::system::system_error &e)
     {
         LPBACKEND_LOG(lg_, fatal) << "Failed to parse JSON config: " << e.what();
+        throw;
     }
 
-    if (!vm_.count("color") && !config_.logging.color_logging)
+    if (!vm_.count("color") && !config_.fields.logging.color_logging)
     {
         lpbackend::log::color_enabled = false;
         LPBACKEND_LOG(lg_, info) << "Disabled colored logging";
@@ -250,9 +251,9 @@ void lpbackend_server::initialize(lpbackend::plugin::plugin_manager &)
             });
         ssl_context_.set_options(boost::asio::ssl::context::default_workarounds | boost::asio::ssl::context::no_sslv2 |
                                  boost::asio::ssl::context::single_dh_use);
-        ssl_context_.use_certificate_chain_file(config_.ssl.certificate);
-        ssl_context_.use_private_key_file(config_.ssl.private_key, boost::asio::ssl::context::file_format::pem);
-        ssl_context_.use_tmp_dh_file(config_.ssl.tmp_dh);
+        ssl_context_.use_certificate_chain_file(config_.fields.ssl.certificate);
+        ssl_context_.use_private_key_file(config_.fields.ssl.private_key, boost::asio::ssl::context::file_format::pem);
+        ssl_context_.use_tmp_dh_file(config_.fields.ssl.tmp_dh);
     }
     catch (const boost::system::system_error &e)
     {
@@ -260,7 +261,13 @@ void lpbackend_server::initialize(lpbackend::plugin::plugin_manager &)
         throw;
     }
 
-    create_directories(config_.http.doc_root);
+    if (exists(config_.fields.http.doc_root) && !is_directory(config_.fields.http.doc_root))
+    {
+        LPBACKEND_LOG(lg_, fatal) << "Failed to open HTTP root: is a file";
+        throw std::runtime_error{"failed to open HTTP root: is a file"};
+    }
+
+    create_directories(config_.fields.http.doc_root);
 }
 
 void lpbackend_server::start()
@@ -287,8 +294,8 @@ void lpbackend_server::start()
     co_spawn(make_strand(context_), handle_signals(), boost::asio::detached);
 
     // Run the I/O service on the requested number of threads
-    pool_.reserve(config_.asio.worker_threads - 1);
-    for (std::size_t i{}; i < config_.asio.worker_threads; i++)
+    pool_.reserve(config_.fields.asio.worker_threads - 1);
+    for (std::size_t i{}; i < config_.fields.asio.worker_threads; i++)
     {
         pool_.emplace_back([this] { checked_context_run(context_, lg_); });
     }

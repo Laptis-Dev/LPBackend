@@ -38,7 +38,7 @@ void plugin_manager::register_plugin(plugin *plugin)
     std::lock_guard<std::mutex> lock{plugin_mutex_};
     if (plugin == nullptr)
     {
-        throw plugin_loading_exception{"Trying to register a null plugin"};
+        throw plugin_loading_exception{"trying to register a null plugin"};
     }
     LPBACKEND_LOG(lg_, info) << "Registering plugin " << plugin->get_descriptor().name << " "
                              << plugin->get_descriptor().version.to_string();
@@ -47,7 +47,7 @@ void plugin_manager::register_plugin(plugin *plugin)
                               << std::dec << "\"";
     if (plugins_.contains(hash))
     {
-        throw plugin_loading_exception{"Trying to register a duplicated plugin"};
+        throw plugin_loading_exception{"trying to register a duplicated plugin"};
     }
     plugins_.insert(std::pair{hash, std::shared_ptr<class plugin>{plugin}});
 }
@@ -67,7 +67,7 @@ void plugin_manager::initialize_plugins()
             {
                 LPBACKEND_LOG(lg_, error) << fmt::format("Detected conflict plugin {} while loading {}", conflict.name,
                                                          plugin->get_descriptor().name);
-                throw plugin_loading_exception{"Plugin conflict detected"};
+                throw plugin_loading_exception{"plugin conflict detected"};
             }
         }
         auto initialize{[this](auto &&self, auto plugin) -> void {
@@ -87,7 +87,7 @@ void plugin_manager::initialize_plugins()
                     {
                         LPBACKEND_LOG(lg_, error) << fmt::format("Dependency plugin {} not found while loading {}",
                                                                  dependency.name, plugin->get_descriptor().name);
-                        throw plugin_loading_exception{"Plugin dependency not found"};
+                        throw plugin_loading_exception{"plugin dependency not found"};
                     }
                     self(self, plugins_[hash]); // Throws std::out_of_range if dependency not found
                 }

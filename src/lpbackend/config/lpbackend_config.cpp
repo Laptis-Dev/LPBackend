@@ -21,28 +21,18 @@
  */
 
 #include <filesystem>
-#include <thread>
+#include <fstream>
 
 #include <fmt/format.h>
 
-#include <boost/property_tree/json_parser.hpp>
-#include <boost/property_tree/ptree.hpp>
+#include <boost/json.hpp>
+#include <boost/pfr.hpp>
 
 #include <lpbackend/config/lpbackend_config.hpp>
+#include <lpbackend/config/pretty_print.hpp>
 
 namespace lpbackend::config
 {
-lpbackend_config::lpbackend_config() noexcept
-    : logging{.color_logging = true},
-      networking{.listen_address = "0.0.0.0", .listen_port = 443, .timeout_milliseconds = 60000},
-      ssl{.certificate = "./ssl/cert.pem",
-          .private_key = "./ssl/key.pem",
-          .tmp_dh = "./ssl/dh.pem",
-          .force_ssl = false},
-      asio{.worker_threads = std::thread::hardware_concurrency()}
-{
-}
-
 void lpbackend_config::load()
 {
     LPBACKEND_LOG(lg_, info) << "Loading LPBackend configuration";
@@ -52,23 +42,47 @@ void lpbackend_config::load()
         save();
         return;
     }
-    boost::property_tree::ptree tree{};
-    read_json(file_path, tree);
+    std::ifstream file_stream{file_path};
+    auto root{boost::json::parse(file_stream)};
+    file_stream.close();
 
-    logging.color_logging = tree.get("logging.color_logging", logging.color_logging);
-
-    networking.listen_address = tree.get("networking.listen_address", networking.listen_address);
-    networking.listen_port = tree.get("networking.listen_port", networking.listen_port);
-    networking.timeout_milliseconds = tree.get("networking.timeout_milliseconds", networking.timeout_milliseconds);
-
-    ssl.certificate = tree.get("ssl.certificate", ssl.certificate);
-    ssl.private_key = tree.get("ssl.private_key", ssl.private_key);
-    ssl.tmp_dh = tree.get("ssl.tmp_dh", ssl.tmp_dh);
-    ssl.force_ssl = tree.get("ssl.force_ssl", ssl.force_ssl);
-
-    asio.worker_threads = tree.get("asio.worker_threads", asio.worker_threads);
-
-    http.doc_root = tree.get("http.doc_root", http.doc_root);
+    boost::pfr::for_each_field_with_name(fields, [this, &root](const std::string_view section_name, auto &section) {
+        boost::pfr::for_each_field_with_name(
+            section, [this, section_name, &root](const std::string_view field_name, auto &field) {
+                auto pointer{fmt::format("/{}/{}", section_name, field_name)};
+                if (!root.try_at_pointer(pointer))
+                {
+                    LPBACKEND_LOG(lg_, warning) << fmt::format("Failed to read {} from config", pointer);
+                    return;
+                }
+                if constexpr (std::is_integral_v<std::decay_t<decltype(field)>>)
+                {
+                    field = value_to<std::decay_t<decltype(field)>>(root.at_pointer(pointer));
+                }
+                else if constexpr (std::is_floating_point_v<std::decay_t<decltype(field)>>)
+                {
+                    field = root.at_pointer(pointer).as_double();
+                }
+                else if constexpr (std::is_same_v<std::decay_t<decltype(field)>, bool>)
+                {
+                    field = root.at_pointer(pointer).as_bool();
+                }
+                else if constexpr (std::is_same_v<std::decay_t<decltype(field)>, std::string>)
+                {
+                    field = root.at_pointer(pointer).as_string();
+                }
+                else if constexpr (std::is_same_v<std::decay_t<decltype(field)>, std::filesystem::path>)
+                {
+                    field = std::filesystem::path{std::string{root.at_pointer(pointer).as_string()}};
+                }
+                else if constexpr (requires(std::decay_t<decltype(field)> t) {
+                                       []<typename Tv>(std::vector<Tv>) {}(t);
+                                   }) // is std::vector
+                {
+                    field = std::vector{root.at_pointer(pointer).as_array()};
+                }
+            });
+    });
 
     save();
 }
@@ -76,24 +90,26 @@ void lpbackend_config::load()
 void lpbackend_config::save()
 {
     LPBACKEND_LOG(lg_, info) << "Saving LPBackend configuration";
-    boost::property_tree::ptree tree{};
 
-    tree.put("logging.color_logging", logging.color_logging);
-
-    tree.put("networking.listen_address", networking.listen_address);
-    tree.put("networking.listen_port", networking.listen_port);
-    tree.put("networking.timeout_milliseconds", networking.timeout_milliseconds);
-
-    tree.put("ssl.certificate", ssl.certificate);
-    tree.put("ssl.private_key", ssl.private_key);
-    tree.put("ssl.tmp_dh", ssl.tmp_dh);
-    tree.put("ssl.force_ssl", ssl.force_ssl);
-
-    tree.put("asio.worker_threads", asio.worker_threads);
-
-    tree.put("http.doc_root", http.doc_root);
+    boost::json::value root{};
+    boost::pfr::for_each_field_with_name(fields, [&root](const std::string_view section_name, auto &section) {
+        boost::pfr::for_each_field_with_name(
+            section, [section_name, &root](const std::string_view field_name, auto &field) {
+                auto pointer{fmt::format("/{}/{}", section_name, field_name)};
+                if constexpr (std::is_same_v<std::decay_t<decltype(field)>, std::filesystem::path>)
+                {
+                    root.set_at_pointer(pointer, field.string());
+                }
+                else
+                {
+                    root.set_at_pointer(pointer, field);
+                }
+            });
+    });
 
     create_directories(std::filesystem::path{file_path}.parent_path());
-    write_json(file_path, tree);
+    std::ofstream file_stream{file_path};
+    pretty_print(file_stream, root);
+    file_stream.close();
 }
 } // namespace lpbackend::config
