@@ -71,6 +71,7 @@ class lpbackend_config : public config
         struct
         {
             std::filesystem::path doc_root{"./docroot"};
+            std::string fallback_file{"home.html"};
         } http;
     } fields;
 

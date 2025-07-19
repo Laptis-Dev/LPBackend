@@ -236,7 +236,7 @@ class LPBACKEND_EXTERN lpbackend_server : public lpbackend::plugin::plugin
         // Build the path to the requested file
         auto path{path_cat(config_.fields.http.doc_root.string(), req.target())};
         if (req.target().back() == '/')
-            path.append("index.html");
+            path.append(config_.fields.http.fallback_file);
 
         // Attempt to open the file
         boost::beast::error_code ec{};
