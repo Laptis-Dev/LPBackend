@@ -251,9 +251,10 @@ void lpbackend_server::initialize(lpbackend::plugin::plugin_manager &)
             });
         ssl_context_.set_options(boost::asio::ssl::context::default_workarounds | boost::asio::ssl::context::no_sslv2 |
                                  boost::asio::ssl::context::single_dh_use);
-        ssl_context_.use_certificate_chain_file(config_.fields.ssl.certificate);
-        ssl_context_.use_private_key_file(config_.fields.ssl.private_key, boost::asio::ssl::context::file_format::pem);
-        ssl_context_.use_tmp_dh_file(config_.fields.ssl.tmp_dh);
+        ssl_context_.use_certificate_chain_file(config_.fields.ssl.certificate.string());
+        ssl_context_.use_private_key_file(config_.fields.ssl.private_key.string(),
+                                          boost::asio::ssl::context::file_format::pem);
+        ssl_context_.use_tmp_dh_file(config_.fields.ssl.tmp_dh.string());
     }
     catch (const boost::system::system_error &e)
     {
