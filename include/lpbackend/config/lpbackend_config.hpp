@@ -41,21 +41,21 @@ class lpbackend_config : public config
   public:
     static constexpr auto file_path{"./config/lpbackend.json"};
 
-    struct
+    struct fields_t
     {
-        struct
+        struct logging_t
         {
             bool color_logging{true};
         } logging;
 
-        struct
+        struct networking_t
         {
             std::string listen_address{"0.0.0.0"};
             boost::asio::ip::port_type listen_port{443};
             std::uint64_t timeout_milliseconds{5000};
         } networking;
 
-        struct
+        struct ssl_t
         {
             std::filesystem::path certificate{"./ssl/cert.pem"};
             std::filesystem::path private_key{"./ssl/key.pem"};
@@ -63,12 +63,12 @@ class lpbackend_config : public config
             bool force_ssl{false};
         } ssl;
 
-        struct
+        struct asio_t
         {
             std::uint64_t worker_threads{std::thread::hardware_concurrency()};
         } asio;
 
-        struct
+        struct http_t
         {
             std::filesystem::path doc_root{"./docroot"};
             std::string fallback_file{"home.html"};
