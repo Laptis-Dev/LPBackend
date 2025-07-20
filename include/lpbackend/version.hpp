@@ -34,7 +34,7 @@ LPBACKEND_EXTERN extern const std::string commit_hash;
 LPBACKEND_EXTERN extern const std::string full_version;
 LPBACKEND_EXTERN extern const std::int32_t protocol_version;
 LPBACKEND_EXTERN extern const std::string protocol_version_name;
-LPBACKEND_EXTERN inline const semver::version semantic_version{[] constexpr {
+inline const semver::version semantic_version{[] constexpr {
     semver::version temp{};
     semver::parse(release_version, temp);
     return temp;
