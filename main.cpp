@@ -114,7 +114,7 @@ int main(int argc, char *argv[])
     }
 #endif
 
-    boost::program_options::options_description desc{"Plasma Usage"};
+    boost::program_options::options_description desc{"LPBackend Bootstrap"};
     desc.add_options()("help", "Show the help")("version", "Show the version only")(
         "init", "Initialize configurations only")("color", "Enable colored logging");
     boost::program_options::variables_map vm{};
