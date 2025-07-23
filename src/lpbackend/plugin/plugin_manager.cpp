@@ -20,9 +20,6 @@
  * SOFTWARE.
  */
 
-#include <map>
-#include <memory>
-
 #include <fmt/format.h>
 
 #include <lpbackend/plugin/plugin.hpp>
@@ -35,26 +32,23 @@ plugin_manager::plugin_manager() = default;
 
 void plugin_manager::register_plugin(plugin *plugin)
 {
-    std::lock_guard<std::mutex> lock{plugin_mutex_};
+    std::lock_guard<std::mutex> lock{plugins_mutex_};
     if (plugin == nullptr)
     {
         throw plugin_loading_exception{"trying to register a null plugin"};
     }
-    LPBACKEND_LOG(lg_, info) << "Registering plugin " << plugin->get_descriptor().name << " "
-                             << plugin->get_descriptor().version.to_string();
-    const auto hash{std::hash<std::string>{}(plugin->get_descriptor().name)};
-    LPBACKEND_LOG(lg_, trace) << "Plugin " << plugin->get_descriptor().name << " name hash \"" << std::hex << hash
-                              << std::dec << "\"";
-    if (plugins_.contains(hash))
+    LPBACKEND_LOG(lg_, info) << fmt::format("Registering plugin {} {}", plugin->get_descriptor().name,
+                                            plugin->get_descriptor().version.to_string());
+    if (plugins_.contains(plugin->get_descriptor().name))
     {
         throw plugin_loading_exception{"trying to register a duplicated plugin"};
     }
-    plugins_.insert(std::pair{hash, std::shared_ptr<class plugin>{plugin}});
+    plugins_.insert(std::pair{plugin->get_descriptor().name, std::shared_ptr<class plugin>{plugin}});
 }
 
 void plugin_manager::initialize_plugins()
 {
-    std::lock_guard<std::mutex> lock{plugin_mutex_};
+    std::lock_guard<std::mutex> lock{plugins_mutex_};
     for (auto &[_, plugin] : plugins_)
     {
         if (plugin->initialized_)
@@ -63,7 +57,7 @@ void plugin_manager::initialize_plugins()
         }
         for (const auto &conflict : plugin->get_descriptor().conflicts)
         {
-            if (plugins_.contains(std::hash<std::string>{}(conflict.name)))
+            if (plugins_.contains(conflict.name))
             {
                 LPBACKEND_LOG(lg_, error) << fmt::format("Detected conflict plugin {} while loading {}", conflict.name,
                                                          plugin->get_descriptor().name);
@@ -75,32 +69,31 @@ void plugin_manager::initialize_plugins()
             {
                 return;
             }
-            plugin->initialized_ = true; // To prevent infinite recursion
+            plugin->initialized_ = true; // to prevent infinite recursion
             LPBACKEND_LOG(lg_, info) << "Initializing plugin " << plugin->get_descriptor().name << " "
                                      << plugin->get_descriptor().version.to_string();
             try
             {
                 for (const auto &dependency : plugin->get_descriptor().dependencies)
                 {
-                    const auto hash{std::hash<std::string>{}(dependency.name)};
-                    if (!plugins_.contains(hash))
+                    if (!plugins_.contains(dependency.name))
                     {
                         LPBACKEND_LOG(lg_, error) << fmt::format("Dependency plugin {} not found while loading {}",
                                                                  dependency.name, plugin->get_descriptor().name);
                         throw plugin_loading_exception{"plugin dependency not found"};
                     }
-                    self(self, plugins_[hash]); // Throws std::out_of_range if dependency not found
+                    self(self, plugins_[dependency.name]); // throws std::out_of_range if dependency not found
                 }
                 for (const auto &optional_dependency : plugin->get_descriptor().optional_dependencies)
                 {
-                    if (const auto hash{std::hash<std::string>{}(optional_dependency.name)}; plugins_.contains(hash))
+                    if (plugins_.contains(optional_dependency.name))
                     {
-                        self(self, plugins_[hash]);
+                        self(self, plugins_[optional_dependency.name]);
                     }
                     else
                     {
                         LPBACKEND_LOG(lg_, warning)
-                            << "Optional dependency " << optional_dependency.name << " not found";
+                            << fmt::format("Optional dependency {} not found", optional_dependency.name);
                     }
                 }
                 plugin->initialize(*this);
@@ -117,9 +110,8 @@ void plugin_manager::initialize_plugins()
 
 std::size_t plugin_manager::unload_plugin(const std::string &name)
 {
-    std::lock_guard<std::mutex> lock{plugin_mutex_};
-    const auto hash{std::hash<std::string>{}(name)};
-    if (plugins_.at(hash)) // throws std::out_of_range if not found
+    std::lock_guard<std::mutex> lock{plugins_mutex_};
+    if (plugins_.at(name)) // throws std::out_of_range if not found
     {
         for (const auto &[_, plugin] : plugins_)
         {
@@ -132,11 +124,11 @@ std::size_t plugin_manager::unload_plugin(const std::string &name)
             }
         }
     }
-    return plugins_.erase(hash);
+    return plugins_.erase(name);
 }
 
 std::shared_ptr<plugin> plugin_manager::get_plugin(const std::string &name) const
 {
-    return plugins_.at(std::hash<std::string>{}(name)); // Copies the shared_ptr
+    return plugins_.at(name); // copies the shared_ptr
 }
 } // namespace lpbackend::plugin

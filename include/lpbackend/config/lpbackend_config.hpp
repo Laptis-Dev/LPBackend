@@ -24,6 +24,7 @@
 
 #include <boost/asio.hpp>
 #include <boost/asio/ssl.hpp>
+#include <boost/url.hpp>
 
 #include <filesystem>
 #include <thread>
@@ -52,7 +53,7 @@ class lpbackend_config : public config
         {
             std::string listen_address{"0.0.0.0"};
             boost::asio::ip::port_type listen_port{443};
-            std::uint64_t timeout_milliseconds{5000};
+            boost::urls::url mime_database_url{"https://cdn.jsdelivr.net/gh/jshttp/mime-db@master/db.json"};
         } networking;
 
         struct ssl_t

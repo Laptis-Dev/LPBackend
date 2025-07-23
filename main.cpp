@@ -130,12 +130,12 @@ int main(int argc, char *argv[])
         return 1;
     }
 
-    if (vm.count("version"))
+    if (vm.contains("version"))
     {
         return 0;
     }
 
-    if (vm.count("help"))
+    if (vm.contains("help"))
     {
         std::cerr << desc << std::endl;
         return 1;
@@ -144,7 +144,7 @@ int main(int argc, char *argv[])
     manager = std::make_unique<lpbackend::plugin::plugin_manager>();
     manager->register_plugin(new lpbackend::lpbackend_server{vm});
     manager->initialize_plugins();
-    if (vm.count("init"))
+    if (vm.contains("init"))
     {
         LPBACKEND_LOG(lg, info) << "Initialized configurations";
         return 0;

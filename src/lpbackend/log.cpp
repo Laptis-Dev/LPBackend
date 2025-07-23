@@ -31,16 +31,16 @@ bool color_enabled{true};
 bool logging_initialized{false};
 
 #if !defined(NDEBUG) || defined(_DEBUG)
-auto formatter{boost::log::expressions::format("[%1%] [%2%:%3%] [%4%]: %5%") %
+auto formatter{boost::log::expressions::format("[%1%] [%2%:%3%] [%4%] [%5%]: %6%") %
                boost::log::expressions::format_date_time<boost::posix_time::ptime>("TimeStamp", "%Y-%m-%d %H:%M:%S") %
                boost::log::expressions::attr<const char *>("File") % boost::log::expressions::attr<int>("Line") %
                boost::log::expressions::attr<boost::log::trivial::severity_level>("Severity") %
-               boost::log::expressions::message};
+               boost::log::expressions::attr<const char *>("Channel") % boost::log::expressions::message};
 #else
-auto formatter{boost::log::expressions::format("[%1%] [%2%]: %3%") %
+auto formatter{boost::log::expressions::format("[%1%] [%2%] [%3%]: %4%") %
                boost::log::expressions::format_date_time<boost::posix_time::ptime>("TimeStamp", "%Y-%m-%d %H:%M:%S") %
                boost::log::expressions::attr<boost::log::trivial::severity_level>("Severity") %
-               boost::log::expressions::message};
+               boost::log::expressions::attr<const char *>("Channel") % boost::log::expressions::message};
 #endif
 
 void color_formatter(boost::log::record_view const &rec, boost::log::formatting_ostream &strm)
@@ -108,6 +108,7 @@ void initialize_logging_system()
                         boost::log::trivial::severity_level::info));
     boost::log::core::get()->add_global_attribute("File", boost::log::attributes::mutable_constant<const char *>(""));
     boost::log::core::get()->add_global_attribute("Line", boost::log::attributes::mutable_constant<int>(0));
+    boost::log::core::get()->add_global_attribute("Channel", boost::log::attributes::constant<const char *>("global"));
     boost::log::core::get()->add_sink(console_sink);
     boost::log::core::get()->add_sink(file_sink);
     logging_initialized = true;
@@ -130,6 +131,7 @@ void initialize_logging_system_test()
                         boost::log::trivial::severity_level::info));
     boost::log::core::get()->add_global_attribute("File", boost::log::attributes::mutable_constant<const char *>(""));
     boost::log::core::get()->add_global_attribute("Line", boost::log::attributes::mutable_constant<int>(0));
+    boost::log::core::get()->add_global_attribute("Channel", boost::log::attributes::constant<const char *>("global"));
     boost::log::core::get()->add_sink(console_sink);
     logging_initialized = true;
 }

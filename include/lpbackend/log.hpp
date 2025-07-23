@@ -40,12 +40,23 @@
 #include <lpbackend/extern.hpp>
 #include <lpbackend/util/path_to_filename.hpp>
 
+using logger = boost::log::sources::logger_mt;
+
+inline logger channel_logger(const char *const channel)
+{
+    boost::log::attribute_set attrs{};
+    attrs["Channel"] = boost::log::attributes::constant<const char *>(channel);
+    logger lg{};
+    lg.set_attributes(attrs);
+    return lg;
+}
+
 namespace lpbackend::log
 {
 extern boost::shared_ptr<std::ostream> clog_stream_ptr;
 extern bool logging_initialized;
 
-template <typename TValue> TValue get_set_attr(const char *name, TValue value)
+template <typename TValue> TValue get_set_attr(const char *const name, TValue value)
 {
     auto attr{boost::log::attribute_cast<boost::log::attributes::mutable_constant<TValue>>(
         boost::log::core::get()->get_global_attributes()[name])};
@@ -60,8 +71,6 @@ LPBACKEND_EXTERN void initialize_logging_system();
 // For tests
 LPBACKEND_EXTERN void initialize_logging_system_test();
 } // namespace lpbackend::log
-
-using logger = boost::log::sources::logger_mt;
 
 #if !defined(NDEBUG) || defined(_DEBUG)
 #define LPBACKEND_LOG(logger, sev)                                                                                     \

@@ -96,7 +96,8 @@ const lpbackend::plugin::plugin_descriptor &lpbackend_server::get_descriptor() n
 }
 
 lpbackend_server::lpbackend_server(const boost::program_options::variables_map &vm)
-    : config_{}, vm_{vm}, ssl_context_{boost::asio::ssl::context::tlsv13}, task_group_{context_.get_executor()}
+    : lg_{channel_logger("lpbackend_server")}, config_{}, vm_{vm},
+      ssl_context_{boost::asio::ssl::context::tlsv13_server}, task_group_{context_.get_executor()}
 {
 }
 
@@ -123,7 +124,7 @@ boost::asio::awaitable<void, lpbackend_server::executor_type> lpbackend_server::
                                          boost::asio::ip::make_address(config_.fields.networking.listen_address),
                                          config_.fields.networking.listen_port}};
 
-    // Allow total cancellation to propagate to async operations
+    // allow total cancellation to propagate to async operations
     co_await boost::asio::this_coro::reset_cancellation_state(boost::asio::enable_total_cancellation());
 
     while (!state.cancelled())
@@ -189,7 +190,8 @@ boost::asio::awaitable<void, lpbackend_server::executor_type> lpbackend_server::
         buffer.consume(bytes_transferred);
 
         LPBACKEND_LOG(lg_, info) << "Accepting incoming HTTPS connection";
-        co_await run_session(ssl_stream, buffer);
+        co_await request_handler_.run_session(ssl_stream, buffer, config_.fields.http.doc_root.string(),
+                                              config_.fields.http.fallback_file, mime_database_);
 
         if (!ssl_stream.lowest_layer().is_open())
         {
@@ -205,7 +207,8 @@ boost::asio::awaitable<void, lpbackend_server::executor_type> lpbackend_server::
     else if (!ssl_detected && !config_.fields.ssl.force_ssl)
     {
         LPBACKEND_LOG(lg_, info) << "Accepting incoming HTTP connection";
-        co_await run_session(stream, buffer);
+        co_await request_handler_.run_session(stream, buffer, config_.fields.http.doc_root.string(),
+                                              config_.fields.http.fallback_file, mime_database_);
     }
     else if (!ssl_detected && config_.fields.ssl.force_ssl)
     {
@@ -216,7 +219,7 @@ boost::asio::awaitable<void, lpbackend_server::executor_type> lpbackend_server::
 
 void lpbackend_server::initialize(lpbackend::plugin::plugin_manager &)
 {
-    // Load configuration
+    // load configuration
     try
     {
         config_.load();
@@ -233,7 +236,23 @@ void lpbackend_server::initialize(lpbackend::plugin::plugin_manager &)
         LPBACKEND_LOG(lg_, info) << "Disabled colored logging";
     }
 
-    // Setup SSL context
+    co_spawn(make_strand(context_), mime_database_.start_update(config_.fields.networking.mime_database_url),
+             task_group_.adapt([this](const std::exception_ptr eptr) {
+                 if (!eptr)
+                 {
+                     return;
+                 }
+                 try
+                 {
+                     rethrow_exception(eptr);
+                 }
+                 catch (std::exception &e)
+                 {
+                     LPBACKEND_LOG(lg_, error) << "Exception occured on updating MIME database: " << e.what();
+                 }
+             }));
+
+    // setup SSL context
     try
     {
         LPBACKEND_LOG(lg_, info) << "Loading SSL certificates";
@@ -275,7 +294,6 @@ void lpbackend_server::start()
 {
     LPBACKEND_LOG(lg_, info) << "Starting LPBackend server";
 
-    // Create and launch a listening coroutine
     co_spawn(make_strand(context_), start_accept(), task_group_.adapt([this](const std::exception_ptr eptr) {
         if (!eptr)
         {
@@ -291,10 +309,8 @@ void lpbackend_server::start()
         }
     }));
 
-    // Create and launch a signal handler coroutine
     co_spawn(make_strand(context_), handle_signals(), boost::asio::detached);
 
-    // Run the I/O service on the requested number of threads
     pool_.reserve(config_.fields.asio.worker_threads - 1);
     for (std::size_t i{}; i < config_.fields.asio.worker_threads; i++)
     {
@@ -302,7 +318,7 @@ void lpbackend_server::start()
     }
     checked_context_run(context_, lg_);
 
-    // Block until all the threads exit
+    // block until all the threads exit
     for (auto &thread : pool_)
     {
         thread.join();
@@ -316,10 +332,10 @@ boost::asio::awaitable<void, lpbackend_server::executor_type> lpbackend_server::
     LPBACKEND_LOG(lg_, info) << "Stopping LPBackend server";
     task_group_.emit(boost::asio::cancellation_type::total);
 
-    LPBACKEND_LOG(lg_, info) << "Waiting child tasks to terminate for 10s";
-    const auto [ec]{co_await task_group_.async_wait(boost::asio::as_tuple(boost::asio::cancel_after(10s)))};
+    LPBACKEND_LOG(lg_, info) << "Waiting child tasks to terminate for 1s";
+    const auto [ec]{co_await task_group_.async_wait(boost::asio::as_tuple(boost::asio::cancel_after(1s)))};
 
-    if (ec == boost::asio::error::operation_aborted) // Timed out
+    if (ec == boost::asio::error::operation_aborted) // timed out
     {
         LPBACKEND_LOG(lg_, error) << "Terminating child tasks...";
         task_group_.emit(boost::asio::cancellation_type::terminal);

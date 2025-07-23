@@ -22,10 +22,10 @@
 
 #pragma once
 
-#include <map>
 #include <memory>
 #include <mutex>
 #include <string>
+#include <unordered_map>
 
 #include <lpbackend/extern.hpp>
 #include <lpbackend/log.hpp>
@@ -38,8 +38,8 @@ class LPBACKEND_EXTERN plugin_manager
 {
   private:
     logger lg_;
-    std::map<std::size_t, std::shared_ptr<plugin>> plugins_;
-    std::mutex plugin_mutex_;
+    std::unordered_map<std::string, std::shared_ptr<plugin>> plugins_;
+    std::mutex plugins_mutex_;
 
   public:
     plugin_manager();

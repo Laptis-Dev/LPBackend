@@ -75,6 +75,10 @@ void lpbackend_config::load()
                 {
                     field = std::filesystem::path{std::string{root.at_pointer(pointer).as_string()}};
                 }
+                else if constexpr (std::is_same_v<std::decay_t<decltype(field)>, boost::urls::url>)
+                {
+                    field = boost::urls::url{std::string{root.at_pointer(pointer).as_string()}};
+                }
                 else if constexpr (requires(std::decay_t<decltype(field)> t) {
                                        []<typename Tv>(std::vector<Tv>) {}(t);
                                    }) // is std::vector
@@ -99,6 +103,10 @@ void lpbackend_config::save()
                 if constexpr (std::is_same_v<std::decay_t<decltype(field)>, std::filesystem::path>)
                 {
                     root.set_at_pointer(pointer, field.string());
+                }
+                else if constexpr (std::is_same_v<std::decay_t<decltype(field)>, boost::urls::url>)
+                {
+                    root.set_at_pointer(pointer, field.c_str());
                 }
                 else
                 {

@@ -58,4 +58,6 @@ const std::string full_version{fmt::format("LPBackend {} [git {}:{}]"
                                            CXX_INTEL / 10000000, (CXX_INTEL % 10000000) / 100000, CXX_INTEL % 100000
 #endif
                                            )};
+
+const std::string user_agent{fmt::format("LPBackend/{}", release_version)};
 } // namespace lpbackend
