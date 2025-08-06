@@ -34,13 +34,15 @@ bool logging_initialized{false};
 auto formatter{boost::log::expressions::format("[%1%] [%2%:%3%] [%4%] [%5%]: %6%") %
                boost::log::expressions::format_date_time<boost::posix_time::ptime>("TimeStamp", "%Y-%m-%d %H:%M:%S") %
                boost::log::expressions::attr<const char *>("File") % boost::log::expressions::attr<int>("Line") %
+               boost::log::expressions::attr<const char *>("Channel") %
                boost::log::expressions::attr<boost::log::trivial::severity_level>("Severity") %
-               boost::log::expressions::attr<const char *>("Channel") % boost::log::expressions::message};
+               boost::log::expressions::message};
 #else
 auto formatter{boost::log::expressions::format("[%1%] [%2%] [%3%]: %4%") %
                boost::log::expressions::format_date_time<boost::posix_time::ptime>("TimeStamp", "%Y-%m-%d %H:%M:%S") %
+               boost::log::expressions::attr<const char *>("Channel") %
                boost::log::expressions::attr<boost::log::trivial::severity_level>("Severity") %
-               boost::log::expressions::attr<const char *>("Channel") % boost::log::expressions::message};
+               boost::log::expressions::message};
 #endif
 
 void color_formatter(boost::log::record_view const &rec, boost::log::formatting_ostream &strm)

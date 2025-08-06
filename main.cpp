@@ -87,7 +87,7 @@ int main(int argc, char *argv[])
     boost::nowide::cout << lpbackend_logo << std::flush;
 #endif
     lpbackend::log::initialize_logging_system();
-    logger lg{};
+    logger lg{channel_logger("bootstrap")};
 #if CXX_OS_WINDOWS
     if (!enable_ansi_support())
     {

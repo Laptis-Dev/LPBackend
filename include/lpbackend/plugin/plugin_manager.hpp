@@ -37,7 +37,7 @@ class plugin;
 class LPBACKEND_EXTERN plugin_manager
 {
   private:
-    logger lg_;
+    logger lg_{channel_logger("plugin_manager")};
     std::unordered_map<std::string, std::shared_ptr<plugin>> plugins_;
     std::mutex plugins_mutex_;
 

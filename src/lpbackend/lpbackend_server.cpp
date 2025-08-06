@@ -120,15 +120,16 @@ boost::asio::awaitable<void, lpbackend_server::executor_type> lpbackend_server::
 {
     auto state{co_await boost::asio::this_coro::cancellation_state};
     auto executor{co_await boost::asio::this_coro::executor};
-    acceptor_type acceptor{executor, boost::asio::ip::tcp::endpoint{
-                                         boost::asio::ip::make_address(config_.fields.networking.listen_address),
-                                         config_.fields.networking.listen_port}};
+    boost::asio::ip::tcp::endpoint endpoint{boost::asio::ip::make_address(config_.fields.networking.listen_address),
+                                            config_.fields.networking.listen_port};
+    acceptor_type acceptor{executor, endpoint};
 
     // allow total cancellation to propagate to async operations
     co_await boost::asio::this_coro::reset_cancellation_state(boost::asio::enable_total_cancellation());
 
     while (!state.cancelled())
     {
+        LPBACKEND_LOG(lg_, info) << "Start to accept on " << endpoint;
         auto socket_executor{make_strand(executor.get_inner_executor())};
         auto [ec, socket]{co_await acceptor.async_accept(socket_executor, boost::asio::as_tuple)};
 

@@ -37,7 +37,7 @@ namespace lpbackend::config
 class lpbackend_config : public config
 {
   private:
-    logger lg_;
+    logger lg_{channel_logger("lpbackend_config")};
 
   public:
     static constexpr auto file_path{"./config/lpbackend.json"};

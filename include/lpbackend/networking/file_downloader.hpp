@@ -94,11 +94,10 @@ class LPBACKEND_EXTERN file_downloader
                 throw boost::beast::system_error{ec};
             }
             std::vector<char> result{};
-            result.reserve(boost::beast::buffer_bytes(response.body().data()));
             for (const auto buffer : buffers_range_ref(response.body().data()))
             {
-                result.insert(result.end(), reinterpret_cast<char *>(buffer.data()),
-                              reinterpret_cast<char *>(buffer.data()) + buffer.size());
+                result.append_range(std::span{reinterpret_cast<char *>(buffer.data()),
+                                              reinterpret_cast<char *>(buffer.data()) + buffer.size()});
             }
             co_return result;
         }
@@ -165,13 +164,15 @@ class LPBACKEND_EXTERN file_downloader
                 throw std::runtime_error{fmt::format("failed to download from {}", url.data())};
             }
 
+            file.seekg(0, std::ios::end);
             const auto size{static_cast<size_t>(file.tellg())};
             file.seekg(0, std::ios::beg);
 
             std::vector<char> buffer{};
-            buffer.reserve(size);
+            buffer.resize(size);
+            file.read(buffer.data(), size);
 
-            if (!file.read(buffer.data(), size))
+            if (!file.good())
             {
                 throw std::runtime_error{fmt::format("failed to download from {}", url.data())};
             }
