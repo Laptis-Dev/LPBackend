@@ -1,6 +1,6 @@
 # LPBackend ![License](https://img.shields.io/badge/license-MIT-blue.svg?style=plastic)
 
-The lightweight forum website backend.
+A lightweight forum website backend.
 
 **This project is under active development.**
 
